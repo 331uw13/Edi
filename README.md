@@ -1,4 +1,4 @@
-# TextEditor
+# Edi
 
 ( work in progress )
 

@@ -2,4 +2,4 @@
 
 ( work in progress )
 
-Text editor made with ImGui
+Text editor

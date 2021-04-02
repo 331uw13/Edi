@@ -2,4 +2,4 @@
 
 ( work in progress )
 
-Text editor
+Text Editor written in C

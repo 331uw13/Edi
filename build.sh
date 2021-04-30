@@ -3,7 +3,7 @@
 if gcc\
      ./src/string.c\
    	 ./src/buffer.c\
-   	 ./src/memory_utils.c\
+   	 ./src/util.c\
    	 ./src/main.c\
    	 ./src/plx.c\
    	-lm -lz; then

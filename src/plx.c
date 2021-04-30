@@ -158,8 +158,7 @@ void plx_exit() {
     if(fbuffer.fd >= 0) {
         close(fbuffer.fd);
     }
-
-    puts("bye.");
+    puts("\033[2J\033[Hbye.");
 }
 
 void plx_getres(u32* x, u32* y) {
@@ -339,10 +338,10 @@ void plx_draw_text(u32 x, u32 y, char* text, u32 size, struct plx_font* font) {
     if(font == NULL) { return; }
 	const u32 xorigin = x;
     const u32 xoff = (font->header.width + font->spacing) * font->scale;
-    const u32 yoff = (font->header.height + font->spacing) * font->scale;
+    const u32 yoff = (font->header.height) * font->scale;
     for(u32 i = 0; i < size; i++) {
 		const char c = text[i];
-		if(c >= 0x20 && c < 0x7F) { 
+		if(c >= 0x20 && c < 0x7F) {
    			plx_draw_char(x, y, text[i], font);
         	x += xoff;
 		}
@@ -363,5 +362,4 @@ u8 plx_keyinput() {
     read(0, &c, 1);
     return c;
 }
-
 

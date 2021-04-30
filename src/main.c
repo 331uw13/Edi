@@ -5,41 +5,27 @@
 
 #include "plx.h"
 #include "buffer.h"
-#include "config.h"
+#include "cursor.h"
+#include "util.h"
+#include "config.h" // <--- settings are here!  (TODO: config file)
 
 #define ENTER      0xD
 #define BACKSPACE  0x7F
 #define TAB        0x9
 #define ESC        0x1B
 
-#define MAX(a, b) (a > b) ? a : b
-#define MIN(a, b) (a < b) ? a : b
-
-
-struct cursor {
-	u32 x;
-	u32 y;
-};
 
 void handle_enter_key(struct edit_buffer* buffer, struct cursor* cur) {
 	if(buffer_health_check(buffer) && cur->y < buffer->last_line) {
 		struct string* str = &buffer->data[cur->y];
-		struct string* next_str = &buffer->data[cur->y+1];
 		const u32 x = MIN(cur->x, str->len);
 		const u32 y = MIN(cur->y, buffer->last_line);
-		const u32 part_len = str->len - x;
 		
 		if(buffer_shift_lines(buffer, BUFFER_SHIFT_DOWN, y)) {
-			memset(next_str->data, 0x0, next_str->len);
-			if(str->len > 0 && x < str->len) {
-				memmove(next_str->data, str->data + x, part_len);   // Move part to the new line.	
-				memset(str->data + x, 0x0, part_len);           // Clean part from original str that is not duplicate.
+			if(buffer_cut(buffer, str, x, str->len, 0, y+1)) {
+				cur->x = 0;
+				cur->y++;
 			}
-
-			str->len -= part_len;
-			next_str->len = part_len;
-			cur->y++;
-			cur->x = 0;
 		}
 	}
 }
@@ -48,7 +34,7 @@ void handle_backspace_key(struct edit_buffer* buffer, struct cursor* cur) {
 	if(buffer_health_check(buffer) && cur->y < buffer->last_line) {
 		struct string* str = &buffer->data[cur->y];
 		
-		if(cur->x == 0 && cur->y > 0 && str->len == 0) {
+		if(cur->x == 0 && cur->y > 0) {
 			const u32 x = MIN(cur->x, str->len);
 			const u32 y = MIN(cur->y, buffer->last_line);
 
@@ -59,6 +45,7 @@ void handle_backspace_key(struct edit_buffer* buffer, struct cursor* cur) {
 		else {
 			if(buffer_remchr(buffer, cur->x, cur->y)) {
 				cur->x--;
+				cur->prev_line_x = cur->x;
 			}
 		}
 	}
@@ -140,23 +127,31 @@ void handle_input(struct edit_buffer* buffer, struct cursor* cur) {
 			plx_keyinput(); // ignore 0x5b '['
 			switch(plx_keyinput()) {	
 				case 'C':
-					cur->x++;
+					if(cur->x < buffer->data[cur->y].len) {
+						cur->x++;
+						cur->prev_line_x = cur->x;
+					}
 					break;
 
 				case 'D':
 					if(cur->x > 0) {
 						cur->x--;
+						cur->prev_line_x = cur->x;
 					}
 					break;
 
 				case 'A':
 					if(cur->y > 0) {
 						cur->y--;
+						cur->x = MIN(cur->prev_line_x, buffer->data[cur->y].len);
 					}
 					break;
 	
 				case 'B':
-					cur->y++;
+					if(cur->y < buffer->last_line - 1) {
+						cur->y++;
+						cur->x = MIN(cur->prev_line_x, buffer->data[cur->y].len);
+					}
 					break;
 			
 				default: break;
@@ -166,6 +161,7 @@ void handle_input(struct edit_buffer* buffer, struct cursor* cur) {
 		default:
 			if(buffer_addchr(buffer, cur->x, cur->y, input)) {
 				cur->x++;
+				cur->prev_line_x = cur->x;
 			}
 			break;
 	}
@@ -181,11 +177,12 @@ int main() {
 	}
 
 	struct plx_font font;
-	struct cursor cur = { 0, 0 };
+	struct cursor cur;
 	struct edit_buffer buffer;
 
-	plx_load_font(FONTFILE, &font);
-    font.scale = 1;
+	plx_load_font(FONT_FILE, &font);
+    font.scale = 2;
+	font.spacing = 1;
 
 	u32 width = 0;
 	u32 height = 0;
@@ -195,11 +192,6 @@ int main() {
 	plx_swap_buffers();
 
 
-	create_buffer(&buffer, 
-			width / font.header.width,
-			height / font.header.height
-			);
-
 	char title[64];
 	char* modes[4] = {
 		"MODE_INVALID",
@@ -208,30 +200,36 @@ int main() {
 		"MODE_SELECT"
 	};
 
-	const u32 title_y = TITLE_POS ? 0 : height - font.header.height;
+	const u32 font_scr_width = (font.header.width + font.spacing) * font.scale;
+	const u32 font_scr_height = (font.header.height + font.spacing) * font.scale;
+	const u32 title_y = TITLE_POS ? 0 : height - font_scr_height;
+
+	create_buffer(&buffer, 
+			width / font_scr_width,
+			height / font_scr_height
+			);
+
+	cur.x = 0;
+	cur.y = 0;
+	cur.prev_line_x = 0;
 
     while(1) {
-	
-		plx_color(80, 200, 80);
-        plx_draw_rect(cur.x * font.header.width,
-				      (cur.y + TITLE_POS) * font.header.height,
-					  font.header.width, font.header.height);
-
-		sprintf(title, "%s | %li | %ix%i | %i,%i",
-				modes[buffer.mode], buffer.last_line, width, height, cur.x, cur.y);
-
-		plx_color(80, 80, 80);
-		plx_draw_rect(0, title_y, width, font.header.height);
 		
+		plx_color(80, 200, 80);
+        plx_draw_rect(MIN(cur.x, buffer.width) * font_scr_width, (cur.y + TITLE_POS) * font_scr_height, font_scr_width, font_scr_height);
+		
+		plx_color(80, 80, 80);
+		plx_draw_rect(0, title_y, width, font_scr_height);
+		
+		sprintf(title, "%s | %li | %ix%i | %i,%i", modes[buffer.mode], buffer.last_line, width, height, cur.x, cur.y);
 		plx_color(25, 255, 255);
 		plx_draw_text(TITLE_OFFSET, title_y, title, strlen(title), &font);
-
 
 		// (TODO: dont use time to render stuff that is actually not visible at the moment.)
 		plx_color(255, 255, 255);
 		for(u64 i = 0; i < buffer.last_line; i++) {
 			const struct string* str = &buffer.data[i];
-			plx_draw_text(0, (i + TITLE_POS) * font.header.height, str->data, str->len, &font);
+			plx_draw_text(0, (i + TITLE_POS) * font_scr_height, str->data, MIN(buffer.width, str->len), &font);
 		}
 
 		plx_swap_buffers();

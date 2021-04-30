@@ -2,4 +2,4 @@
 
 ( work in progress )
 
-Text Editor written in C
+Framebuffer text editor

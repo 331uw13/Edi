@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "edi.h"
-#include "plx.h"
 #include "util.h"
 
 
@@ -15,7 +15,9 @@ void init_program(struct edi* e) {
 	e->empty_frame_id = 0;
 	e->lua_state = NULL;
 	e->buf = NULL;
-
+	e->width = 0;
+	e->height = 0;
+		
 	for(u32 i = 0; i < MAX_BUFFERS; i++) {
 		struct edit_buffer* buf = &e->buffers[i];
 		buf->data = NULL;
@@ -110,7 +112,6 @@ u8 add_buffer(struct edi* e, u32 cols, u32 rows) {
 		struct edit_buffer* buf = &e->buffers[find_empty_buffer(e)];
 		if(init_buffer(buf, cols, rows)) {
 			e->buf = buf;
-
 			e->buffer_count++;
 		}
 	}
@@ -131,11 +132,30 @@ u8 add_frame(struct edi* e, char* text, u32 x, u32 y, u32 w, u32 h) {
 			fr->height = h;
 			fr->flags = FRAME_ACTIVE;
 
+			e->fr = fr;
 			e->frame_count++;
 		}
 	}
 
 	return res;
+}
+
+void add_msg(struct edi* e, char* text, ...) {
+	if(e != NULL) {
+		char buf[MAX_MSG_LEN];
+		va_list ap;
+		va_start(ap, text);
+		vsnprintf(buf, MAX_MSG_LEN, text, ap);
+		va_end(ap);
+
+		const u32 msgh = e->font->header.height * e->font->scale;
+		const u32 msgy = e->height - msgh*2;
+		plx_color(120, 100, 120);
+		plx_draw_rect(0, msgy, e->width, msgh);
+		
+		plx_color(25, 25, 25);
+		plx_draw_text(5, msgy, buf, -1, e->font);
+	}
 }
 
 void remove_buffer(struct edi* e, u32 id) {

@@ -39,3 +39,13 @@ u8 resize_memory(void** ptr, u64 mem_size, u64 new_mem_size) {
 	return res;
 }
 
+int lua_getint(lua_State* lua_state, char* name) {
+	int res = 0;
+	lua_getglobal(lua_state, name);
+	if(lua_isnumber(lua_state, -1)) {
+		res = lua_tonumber(lua_state, -1);
+	}
+	lua_pop(lua_state, -1);
+	return res;
+}
+

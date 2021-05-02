@@ -17,6 +17,4 @@ struct frame {
 };
 
 
-// add_frame() is in "edi.h"
-
 #endif

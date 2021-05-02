@@ -15,7 +15,6 @@
 void handle_input(struct edi* e) {
 	u8 input = plx_keyinput();
 
-	/* DELETE THIS */ char cmd[32];
 	switch(input) {
 		
 		case KEY_QUIT_EDITOR:

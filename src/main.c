@@ -11,33 +11,6 @@
 #include "config.h" // <---  settings are here!  (TODO: read values from lua file)
 
 
-/*
-void testing_stuff_delete_later() {
-	lua_State* L = luaL_newstate();
-
-	if(L == NULL) {
-		printf("lua state is NULL!\n");
-	}
-	printf("%p\n", L);
-
-	const char* test = "a = 1 + 2";
-	int result = luaL_dostring(L, test);
-	if(result == 0) {
-		printf("ok\n");
-	}
-	else {
-		printf("no\n");
-	}
-
-	lua_getglobal(L, "a");
-	if(lua_isnumber(L, -1)) {
-		printf("a = %f\n", lua_tonumber(L, -1));
-	}
-
-	lua_close(L);
-}
-*/
-
 void draw_frame(struct frame* fr, struct plx_font* font) {
 
 	plx_color(100, 100, 100);
@@ -47,7 +20,6 @@ void draw_frame(struct frame* fr, struct plx_font* font) {
 	plx_draw_text(fr->x, fr->y, fr->title.data, fr->title.len, font);
 
 }
-
 
 
 int main(int argc, char** argv) {
@@ -69,18 +41,18 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
+	luaL_dostring(e.lua_state, "test = 123;");
+
 	plx_load_font(FONT_FILE, &font);
     font.scale = FONT_SCALE;
 	font.spacing = FONT_SPACING;
 	font.tabwidth = TAB_WIDTH;
 
-	u32 width = 0;
-	u32 height = 0;
+	e.font = &font;
 
-	plx_getres(&width, &height);
+	plx_getres(&e.width, &e.height);
 	plx_clear_color(10, 10, 83);
 	plx_swap_buffers();
-
 
 	char title[64];
 	char* modes[5] = {
@@ -94,9 +66,9 @@ int main(int argc, char** argv) {
 	// TODO: add font screen dimensions to framebuffer utils.
 	const u32 font_scr_width = (font.header.width + font.spacing) * font.scale;
 	const u32 font_scr_height = (font.header.height + font.spacing) * font.scale;
-	const u32 title_y = TITLE_POS ? 0 : height - font_scr_height;
-	const u32 max_cols = (width / font_scr_width) - 1;
-	const u32 max_rows = (height / font_scr_height) - 1;
+	const u32 title_y = TITLE_POS ? 0 : e.height - font_scr_height;
+	const u32 max_cols = (e.width / font_scr_width) - 1;
+	const u32 max_rows = (e.height / font_scr_height) - 1;
 
 	add_buffer(&e, max_cols, max_rows);
 
@@ -114,7 +86,7 @@ int main(int argc, char** argv) {
 	
 		// Title bar
 		plx_color(80, 80, 80);
-		plx_draw_rect(0, title_y, width, font_scr_height);
+		plx_draw_rect(0, title_y, e.width, font_scr_height);
 
 
 		if(e.buf != NULL) {
@@ -122,7 +94,7 @@ int main(int argc, char** argv) {
 			
 			// Cursor
 			plx_color(80, 200, 80);
-			const u32 cur_off = string_num_chars(currentln, 0, e.buf->cursor_x+1, '\t');  // Count tab characters from start of line to cursor x position.
+			const u32 cur_off = string_num_chars(currentln, 0, e.buf->cursor_x+1, '\t');
 			const u32 cur_scr_x = (e.buf->cursor_x + (cur_off * font.tabwidth) - cur_off) * font_scr_width;
 			
 			if(e.buf->mode != COMMAND_INPUT) {
@@ -135,7 +107,12 @@ int main(int argc, char** argv) {
 			// Title text
 			plx_color(25, 255, 255);
 			if(e.buf->mode != COMMAND_INPUT) {
-				sprintf(title, "%s | %ix%i | %i,%i", modes[e.buf->mode], e.buf->width, e.buf->height, e.buf->cursor_x, e.buf->cursor_y);
+				sprintf(title, "%s | %ix%i | %i,%i | test = %i", 
+						modes[e.buf->mode],
+					   	e.buf->width, e.buf->height,
+					   	e.buf->cursor_x, e.buf->cursor_y,
+						lua_getint(e.lua_state, "test")
+						);
 				plx_draw_text(TITLE_OFFSET, title_y, title, strlen(title), &font);
 			}
 			else {

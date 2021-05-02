@@ -16,6 +16,6 @@
 
 u8 allocate_memory(void** ptr, u64 mem_size);
 u8 resize_memory(void** ptr, u64 mem_size, u64 new_mem_size);
-
+int lua_getint(lua_State* lua_state, char* name);
 
 #endif

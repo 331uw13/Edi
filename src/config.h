@@ -12,6 +12,7 @@
 #define MAX_FRAME_TITLE_LEN  32
 #define MAX_FRAMES           32
 #define MAX_BUFFERS          16
+#define MAX_MSG_LEN          512
 
 #define TITLE_OFFSET   3
 #define TITLE_POS      0     // 1 for top and 0 for bottom.
@@ -19,7 +20,7 @@
 #define FONT_FILE      "Tamsyn8x16b.psf.gz"    // NOTE: currently only supports psf2.  (TODO: add more support.)
 #define TAB_WIDTH      4     // Tab character width.
 #define FONT_SPACING   1     // Space between each character.
-#define FONT_SCALE     2
+#define FONT_SCALE     1
 
 #define KEY_SAVE_CURRENT   CTRL('w')
 #define KEY_QUIT_EDITOR    CTRL('q')

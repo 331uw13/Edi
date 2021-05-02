@@ -5,171 +5,53 @@
 
 #include "plx.h"
 #include "buffer.h"
-#include "cursor.h"
+#include "file_io.h"
+#include "input_handler.h"
 #include "util.h"
-#include "config.h" // <--- settings are here!  (TODO: config file)
-
-#define ENTER      0xD
-#define BACKSPACE  0x7F
-#define TAB        0x9
-#define ESC        0x1B
+#include "config.h" // <---  settings are here!  (TODO: read values from lua file)
 
 
-void handle_enter_key(struct edit_buffer* buffer, struct cursor* cur) {
-	if(buffer_health_check(buffer) && cur->y < buffer->last_line) {
-		struct string* str = &buffer->data[cur->y];
-		const u32 x = MIN(cur->x, str->len);
-		const u32 y = MIN(cur->y, buffer->last_line);
-		
-		if(buffer_shift_lines(buffer, BUFFER_SHIFT_DOWN, y)) {
-			if(buffer_cut(buffer, str, x, str->len, 0, y+1)) {
-				cur->x = 0;
-				cur->y++;
-			}
-		}
+/*
+void testing_stuff_delete_later() {
+	lua_State* L = luaL_newstate();
+
+	if(L == NULL) {
+		printf("lua state is NULL!\n");
 	}
+	printf("%p\n", L);
+
+	const char* test = "a = 1 + 2";
+	int result = luaL_dostring(L, test);
+	if(result == 0) {
+		printf("ok\n");
+	}
+	else {
+		printf("no\n");
+	}
+
+	lua_getglobal(L, "a");
+	if(lua_isnumber(L, -1)) {
+		printf("a = %f\n", lua_tonumber(L, -1));
+	}
+
+	lua_close(L);
 }
+*/
 
-void handle_backspace_key(struct edit_buffer* buffer, struct cursor* cur) {
-	if(buffer_health_check(buffer) && cur->y < buffer->last_line) {
-		struct string* str = &buffer->data[cur->y];
-		
-		if(cur->x == 0 && cur->y > 0) {
-			const u32 x = MIN(cur->x, str->len);
-			const u32 y = MIN(cur->y, buffer->last_line);
+void draw_frame(struct frame* fr, struct plx_font* font) {
 
-			if(buffer_shift_lines(buffer, BUFFER_SHIFT_UP, y)) {
-				cur->y--;
-			}
-		}
-		else {
-			if(buffer_remchr(buffer, cur->x, cur->y)) {
-				cur->x--;
-				cur->prev_line_x = cur->x;
-			}
-		}
-	}
+	plx_color(100, 100, 100);
+	plx_draw_rect(fr->x, fr->y, fr->width, fr->height);
+
+	plx_color(255, 255, 255);
+	plx_draw_text(fr->x, fr->y, fr->title.data, fr->title.len, font);
+
 }
 
 
-void handle_input(struct edit_buffer* buffer, struct cursor* cur) {
-	u8 input = plx_keyinput();
 
-	/* DELETE THIS */ char cmd[32];
-	switch(input) {
-		
-		case KEY_QUIT_EDITOR:
-			//printf("%x\n", plx_keyinput());
-			plx_exit();
-			destroy_buffer(buffer);
+int main(int argc, char** argv) {
 
-			/* DELETE THIS */ sprintf(cmd, "ps -p %d -o %%cpu,%%mem > log.txt", getpid());
-		 	/* DELETE THIS */ system(cmd);
-
-			exit(0);
-			break;
-
-		case KEY_SWAP_LINE_UP:
-			if(cur->y > 0) {
-				swap_string(&buffer->data[cur->y], &buffer->data[cur->y-1]);
-				cur->y--;
-			}
-			break;
-		
-		case KEY_SWAP_LINE_DOWN:
-			if(cur->y < buffer->last_line) {
-				swap_string(&buffer->data[cur->y], &buffer->data[cur->y+1]);
-				cur->y++;
-			}
-			break;
-
-		case KEY_GOTO_EOF:
-			cur->x = 0;
-			cur->y = buffer->last_line-1;
-			break;
-
-		case KEY_GOTO_SOF:
-			cur->x = 0;
-			cur->y = 0;
-			break;
-		
-		case KEY_GOTO_EOL:
-			if(cur->y < buffer->last_line) {
-				cur->x = buffer->data[cur->y].len;
-			}
-			break;
-
-		case KEY_GOTO_SOL:
-			cur->x = 0;  // TODO: check for tabs ?
-			break;
-
-		case KEY_REPLACE_MODE:
-			buffer->mode = MODE_REPLACE;
-			break;
-		
-		case KEY_INSERT_MODE:
-			buffer->mode = MODE_INSERT;
-			break;
-
-		case KEY_SELECT_MODE:
-			buffer->mode = MODE_SELECT;
-			break;
-
-		case ENTER:
-			handle_enter_key(buffer, cur);
-			break;
-
-		case BACKSPACE:
-			handle_backspace_key(buffer, cur);
-			break;
-
-		case ESC:
-			plx_keyinput(); // ignore 0x5b '['
-			switch(plx_keyinput()) {	
-				case 'C':
-					if(cur->x < buffer->data[cur->y].len) {
-						cur->x++;
-						cur->prev_line_x = cur->x;
-					}
-					break;
-
-				case 'D':
-					if(cur->x > 0) {
-						cur->x--;
-						cur->prev_line_x = cur->x;
-					}
-					break;
-
-				case 'A':
-					if(cur->y > 0) {
-						cur->y--;
-						cur->x = MIN(cur->prev_line_x, buffer->data[cur->y].len);
-					}
-					break;
-	
-				case 'B':
-					if(cur->y < buffer->last_line - 1) {
-						cur->y++;
-						cur->x = MIN(cur->prev_line_x, buffer->data[cur->y].len);
-					}
-					break;
-			
-				default: break;
-			}
-			break;
-
-		default:
-			if(buffer_addchr(buffer, cur->x, cur->y, input)) {
-				cur->x++;
-				cur->prev_line_x = cur->x;
-			}
-			break;
-	}
-}
-
-
-int main() {
-	
 	plx_init();
 	if(plx_getstatus() & PLX_ERR) {
 		plx_exit();
@@ -177,63 +59,118 @@ int main() {
 	}
 
 	struct plx_font font;
-	struct cursor cur;
-	struct edit_buffer buffer;
+	struct edi e;
+	init_program(&e);
+
+	e.lua_state = luaL_newstate();
+	if(e.lua_state == NULL) {
+		plx_exit();
+		fprintf(stderr, "Failed to initialize lua!\n");
+		return -1;
+	}
 
 	plx_load_font(FONT_FILE, &font);
-    font.scale = 2;
-	font.spacing = 1;
+    font.scale = FONT_SCALE;
+	font.spacing = FONT_SPACING;
+	font.tabwidth = TAB_WIDTH;
 
 	u32 width = 0;
 	u32 height = 0;
 
 	plx_getres(&width, &height);
-    plx_clear_color(10, 10, 83);
+	plx_clear_color(10, 10, 83);
 	plx_swap_buffers();
 
 
 	char title[64];
-	char* modes[4] = {
+	char* modes[5] = {
 		"MODE_INVALID",
-		"MODE_REPLACE",
 		"MODE_INSERT",
-		"MODE_SELECT"
+		"MODE_REPLACE",
+		"MODE_SELECT",
+		"MODE_CMD"
 	};
 
+	// TODO: add font screen dimensions to framebuffer utils.
 	const u32 font_scr_width = (font.header.width + font.spacing) * font.scale;
 	const u32 font_scr_height = (font.header.height + font.spacing) * font.scale;
 	const u32 title_y = TITLE_POS ? 0 : height - font_scr_height;
+	const u32 max_cols = (width / font_scr_width) - 1;
+	const u32 max_rows = (height / font_scr_height) - 1;
 
-	create_buffer(&buffer, 
-			width / font_scr_width,
-			height / font_scr_height
-			);
+	add_buffer(&e, max_cols, max_rows);
 
-	cur.x = 0;
-	cur.y = 0;
-	cur.prev_line_x = 0;
+	if(argc > 1) {
+		open_file(argv[1], e.buf);
+	}
+
+	// TODO: optimization after everything i need is working.
+	// - try to keep redrawing to minumum
+	// - dont draw stuff that are not visible.
+	// ...
 
     while(1) {
-		
-		plx_color(80, 200, 80);
-        plx_draw_rect(MIN(cur.x, buffer.width) * font_scr_width, (cur.y + TITLE_POS) * font_scr_height, font_scr_width, font_scr_height);
-		
+		plx_delay(5);
+	
+		// Title bar
 		plx_color(80, 80, 80);
 		plx_draw_rect(0, title_y, width, font_scr_height);
+
+
+		if(e.buf != NULL) {
+			struct string* currentln = &e.buf->data[e.buf->cursor_y];
+			
+			// Cursor
+			plx_color(80, 200, 80);
+			const u32 cur_off = string_num_chars(currentln, 0, e.buf->cursor_x+1, '\t');  // Count tab characters from start of line to cursor x position.
+			const u32 cur_scr_x = (e.buf->cursor_x + (cur_off * font.tabwidth) - cur_off) * font_scr_width;
+			
+			if(e.buf->mode != COMMAND_INPUT) {
+				plx_draw_rect(cur_scr_x, (e.buf->cursor_y + TITLE_POS) * font_scr_height, font_scr_width, font_scr_height);
+			}
+			else {
+				plx_draw_rect(cur_scr_x + TITLE_OFFSET, title_y, font_scr_width, font_scr_height);
+			}
+
+			// Title text
+			plx_color(25, 255, 255);
+			if(e.buf->mode != COMMAND_INPUT) {
+				sprintf(title, "%s | %ix%i | %i,%i", modes[e.buf->mode], e.buf->width, e.buf->height, e.buf->cursor_x, e.buf->cursor_y);
+				plx_draw_text(TITLE_OFFSET, title_y, title, strlen(title), &font);
+			}
+			else {
+				plx_draw_text(TITLE_OFFSET, title_y, e.buf->cmd_input.data, e.buf->cmd_input.len, &font);
+			}
 		
-		sprintf(title, "%s | %li | %ix%i | %i,%i", modes[buffer.mode], buffer.last_line, width, height, cur.x, cur.y);
-		plx_color(25, 255, 255);
-		plx_draw_text(TITLE_OFFSET, title_y, title, strlen(title), &font);
+			// Text
+			// (TODO: dont use time to render stuff that is actually not visible at the moment.)
+			plx_color(255, 255, 255);
+			for(u32 i = 0; i < e.buf->last_line; i++) {
+				const struct string* str = &e.buf->data[i];
+				plx_draw_text(1, (i + TITLE_POS) * font_scr_height, str->data, MIN(e.buf->width, str->len), &font);
+			}
 
-		// (TODO: dont use time to render stuff that is actually not visible at the moment.)
-		plx_color(255, 255, 255);
-		for(u64 i = 0; i < buffer.last_line; i++) {
-			const struct string* str = &buffer.data[i];
-			plx_draw_text(0, (i + TITLE_POS) * font_scr_height, str->data, MIN(buffer.width, str->len), &font);
+			// Frames
+			for(u32 i = 0; i < e.frame_count; i++) {
+				draw_frame(&e.frames[i], &font);
+			}
+
+			plx_swap_buffers();
+			if(e.buf->mode != COMMAND_INPUT) {
+				handle_input(&e);
+			}
+			else {
+				handle_command_input(&e);
+			}
+
 		}
-
-		plx_swap_buffers();
-		handle_input(&buffer, &cur);
+		else {
+			plx_color(25, 255, 255);
+			plx_draw_text(TITLE_OFFSET, title_y, "NULL", 4, &font);
+			
+			plx_swap_buffers();
+			handle_input(&e);
+		}
     }
 
     plx_unload_font(&font);

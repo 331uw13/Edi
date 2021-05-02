@@ -63,7 +63,7 @@ void plx_draw_rect(u32 x, u32 y, u32 w, u32 h);
 void plx_draw_rect_hollow(u32 x, u32 y, u32 w, u32 h, u32 tx, u32 ty);
 void plx_draw_line(u32 x0, u32 y0, u32 x1, u32 y1);
 void plx_draw_char(u32 x, u32 y, char c, struct plx_font* font);
-void plx_draw_text(u32 x, u32 y, char* text, u32 size, struct plx_font* font);
+void plx_draw_text(u32 x, u32 y, char* text, int size, struct plx_font* font);
 
 // Input
 u8 plx_keyinput();

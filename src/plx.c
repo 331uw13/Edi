@@ -334,11 +334,14 @@ void plx_draw_char(u32 x, u32 y, char c, struct plx_font* font) {
     }
 }
 
-void plx_draw_text(u32 x, u32 y, char* text, u32 size, struct plx_font* font) {
+void plx_draw_text(u32 x, u32 y, char* text, int size, struct plx_font* font) {
     if(font == NULL) { return; }
 	const u32 xorigin = x;
     const u32 xoff = (font->header.width + font->spacing) * font->scale;
     const u32 yoff = (font->header.height) * font->scale;
+	if(size < 0) {
+		size = strlen(text);
+	}
     for(u32 i = 0; i < size; i++) {
 		const char c = text[i];
 		if(c >= 0x20 && c < 0x7F) {

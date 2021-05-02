@@ -1,11 +1,9 @@
-#include <stdio.h>
-
 #include "string.h"
 #include "util.h"
 #include "config.h"
 
 
-void create_string(struct string* str, u64 bytes) {
+void init_string(struct string* str, u64 bytes) {
 	if(str != NULL) {
 		if(allocate_memory((void*)&str->data, bytes)) {
 			str->len = 0;
@@ -14,7 +12,7 @@ void create_string(struct string* str, u64 bytes) {
 	}
 }
 
-void destroy_string(struct string* str) {
+void free_string(struct string* str) {
 	if(str != NULL && str->data != NULL) {
 		free(str->data);
 		str->data = NULL;
@@ -22,7 +20,7 @@ void destroy_string(struct string* str) {
 		str->len = 0;
 	}
 	else {
-		printf("Warning: possible memory leak!\nstring data is NULL when destroying it!\n");
+		printf("[CRITICAL WARNING]: possible memory leak!!! String is NULL when trying to destroy it!\n");
 	}
 }
 
@@ -48,11 +46,12 @@ void append_string(struct string* dest, struct string* src) {
 	}
 }
 
-u8 string_memcheck(struct string* str, u32 inc) {
+u8 string_memcheck(struct string* str, int inc) {
 	u8 res = 0;
 	if(str != NULL) {
 		res = 1;
-		if(str->len + inc >= str->mem_len) {
+		const int request = str->len + inc;
+		if(request >= str->mem_len) {
 			if(resize_memory((void*)&str->data, str->mem_len, str->mem_len + LINE_BLOCK_SIZE)) {
 				str->mem_len += LINE_BLOCK_SIZE;
 			}
@@ -60,8 +59,51 @@ u8 string_memcheck(struct string* str, u32 inc) {
 				res = 0;
 			}
 		}
+		else if(request < 0) {
+			// TODO: check if its good idea to free some memory.
+			res = 0;
+		}
 	}
 
 	return res;
+}
+
+u32 string_num_chars(struct string* str, u32 start, u32 end, char c) {
+	u32 count = 0;
+	if(str != NULL && str->data != NULL) {
+		char* i = &str->data[start];
+		u32 p = 0;
+		while(p < end - start) {
+			i = memchr(str->data + p, c, end - p);
+			p = i - str->data + 1;
+			count++;
+		}
+	}
+
+	return count - 1;
+}
+
+u8 string_shift(struct string* str, int start, int amount) {
+	u8 res = 0;
+	if(string_memcheck(str, amount) && (start > 0 || amount > 0)) {
+		memmove(str->data + start + amount, str->data + start, str->len - start);
+		str->len += amount;
+		res = 1;
+	}
+
+	return res;
+}
+
+void string_add_char(struct string* str, u32 start, u32 num, char c) {
+	if(string_shift(str, start, num)) {
+		memset(str->data + start, c, num);
+	}
+}
+
+void string_add_data(struct string* str, char* data, u32 len, u32 start) {
+	if(string_memcheck(str, len) && start < str->len + len) {
+		memmove(str->data + start, data, len);
+		str->len += len;
+	}
 }
 

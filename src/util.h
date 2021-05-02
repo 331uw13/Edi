@@ -4,7 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "typedefs.h"
+#include <lua5.2/lua.h>
+#include <lua5.2/lualib.h>
+#include <lua5.2/lauxlib.h>
+
+#include "common.h"
 
 #define MAX(a, b) ((a >= b) ? a : b)
 #define MIN(a, b) ((a <= b) ? a : b)

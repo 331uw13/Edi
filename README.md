@@ -8,6 +8,9 @@ Framebuffer text editor
 ### Ideas:
 
 - lua support and scripting plugins/addons will be possible
-- very customizable
+- alot customization
 - built in file browser
 - multiple buffers can be open
+- regex search
+- undo/redo
+- select mode

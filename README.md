@@ -5,7 +5,7 @@
 Framebuffer text editor
 
 
-### Ideas:
+### Ideas/Todo list:
 
 - lua support and scripting plugins/addons will be possible
 - alot customization

@@ -8,6 +8,7 @@ void init_string(struct string* str, u64 bytes) {
 		if(allocate_memory((void*)&str->data, bytes)) {
 			str->len = 0;
 			str->mem_len = bytes;
+			str->redraw_len = str->len;
 		}
 	}
 }
@@ -18,6 +19,7 @@ void free_string(struct string* str) {
 		str->data = NULL;
 		str->mem_len = 0;
 		str->len = 0;
+		str->redraw_len = 0;
 	}
 	else {
 		printf("[CRITICAL WARNING]: possible memory leak!!! String is NULL when trying to destroy it!\n");

@@ -7,6 +7,7 @@ struct string {
 	char* data;
 	u64 len;
 	u64 mem_len;
+	u32 redraw_len;
 };
 
 void init_string(struct string* str, u64 bytes);

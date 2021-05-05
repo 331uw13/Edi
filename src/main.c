@@ -10,147 +10,110 @@
 #include "util.h"
 #include "config.h" // <---  settings are here!  (TODO: read values from lua file)
 
+#include "draw.h"
 
-void draw_frame(struct frame* fr, struct plx_font* font) {
-
-	plx_color(100, 100, 100);
-	plx_draw_rect(fr->x, fr->y, fr->width, fr->height);
-
-	plx_color(255, 255, 255);
-	plx_draw_text(fr->x, fr->y, fr->title.data, fr->title.len, font);
-
-}
 
 
 int main(int argc, char** argv) {
 
-	plx_init();
-	if(plx_getstatus() & PLX_ERR) {
-		plx_exit();
-		return -1;
-	}
-
-	struct plx_font font;
 	struct edi e;
 	init_program(&e);
 
 	e.lua_state = luaL_newstate();
 	if(e.lua_state == NULL) {
-		plx_exit();
 		fprintf(stderr, "Failed to initialize lua!\n");
 		return -1;
 	}
+	
 
-	luaL_dostring(e.lua_state, "test = 123;");
+	luaL_openlibs(e.lua_state);
+	luaL_dofile(e.lua_state, "config");
 
-	plx_load_font(FONT_FILE, &font);
-    font.scale = FONT_SCALE;
-	font.spacing = FONT_SPACING;
-	font.tabwidth = TAB_WIDTH;
+	u32 bg_color = lua_getint(e.lua_state, "back_color");
+	u32 fg_color = lua_getint(e.lua_state, "text_color");
+	u32 titlebar_bg_color = lua_getint(e.lua_state, "titlebar_back_color");
+	u32 titlebar_fg_color = lua_getint(e.lua_state, "titlebar_text_color");
+	u32 cursor_bg_color = lua_getint(e.lua_state, "cursor_back_color");
+	u32 cursor_fg_color = lua_getint(e.lua_state, "cursor_text_color");
 
-	e.font = &font;
-
-	plx_getres(&e.width, &e.height);
-	plx_clear_color(10, 10, 83);
-	plx_swap_buffers();
-
-	char title[64];
-	char* modes[5] = {
-		"MODE_INVALID",
-		"MODE_INSERT",
-		"MODE_REPLACE",
-		"MODE_SELECT",
-		"MODE_CMD"
-	};
-
-	// TODO: add font screen dimensions to framebuffer utils.
-	const u32 font_scr_width = (font.header.width + font.spacing) * font.scale;
-	const u32 font_scr_height = (font.header.height + font.spacing) * font.scale;
-	const u32 title_y = TITLE_POS ? 0 : e.height - font_scr_height;
-	const u32 max_cols = (e.width / font_scr_width) - 1;
-	const u32 max_rows = (e.height / font_scr_height) - 1;
-
-	add_buffer(&e, max_cols, max_rows);
-
+	init_drawing();
+	add_buffer(&e, get_max_col(), get_max_row());
+	
 	if(argc > 1) {
 		open_file(argv[1], e.buf);
 	}
 
-	// TODO: optimization after everything i need is working.
-	// - try to keep redrawing to minumum
-	// - dont draw stuff that are not visible.
-	// ...
+	u32 abs_prev_cur_x = 0;
+	u32 abs_prev_cur_y = 0;
+	
+	clear_screen(bg_color);
+	
+	// Title bar.
+	const u32 titlebar_y = get_max_row() - 1;
+	draw_rect(0, titlebar_y, get_max_col(), 1, titlebar_bg_color);
+	char titlebar_text[64];
+
+	char* modes_str[5] = {
+		"MODE_INVALID",
+		"MODE_INSERT",
+		"MODE_REPLACE",
+		"MODE_SELECT",
+		"COMMAND_INPUT"
+	};
+
 
     while(1) {
-		plx_delay(5);
-	
-		// Title bar
-		plx_color(80, 80, 80);
-		plx_draw_rect(0, title_y, e.width, font_scr_height);
-
-
+		plx_delay(10);
 		if(e.buf != NULL) {
-			struct string* currentln = &e.buf->data[e.buf->cursor_y];
-			
-			// Cursor
-			plx_color(80, 200, 80);
-			const u32 cur_off = string_num_chars(currentln, 0, e.buf->cursor_x+1, '\t');
-			const u32 cur_scr_x = (e.buf->cursor_x + (cur_off * font.tabwidth) - cur_off) * font_scr_width;
-			
-			if(e.buf->mode != COMMAND_INPUT) {
-				plx_draw_rect(cur_scr_x, (e.buf->cursor_y + TITLE_POS) * font_scr_height, font_scr_width, font_scr_height);
+			struct string* currentln = &e.buf->data[e.buf->cursor.y];
+
+
+			sprintf(titlebar_text, "%s | %i,%i", modes_str[e.buf->mode], e.buf->cursor.x, e.buf->cursor.y);
+			draw_text_with_width_map(titlebar_text, strlen(titlebar_text), 1, titlebar_y,
+						titlebar_fg_color, titlebar_bg_color);
+
+
+			if(e.buf->flags & BUFFER_REDRAW_TEXT) {
+				for(u32 i = 0; i < e.buf->height-1; i++) {
+					struct string* str = &e.buf->data[i];
+					draw_text_with_width_map(str->data, str->len, 0, i, fg_color, bg_color);
+				}
+				e.buf->flags &= ~BUFFER_REDRAW_TEXT;
 			}
-			else {
-				plx_draw_rect(cur_scr_x + TITLE_OFFSET, title_y, font_scr_width, font_scr_height);
+			else if(e.buf->flags & BUFFER_REDRAW_LINE) {
+				struct string* str = &e.buf->data[e.buf->cursor.y];
+				draw_text_with_width_map(str->data, str->len, 0, e.buf->cursor.y, fg_color, bg_color);
+				e.buf->flags &= ~BUFFER_REDRAW_LINE;
 			}
 
-			// Title text
-			plx_color(25, 255, 255);
-			if(e.buf->mode != COMMAND_INPUT) {
-				sprintf(title, "%s | %ix%i | %i,%i | test = %i", 
-						modes[e.buf->mode],
-					   	e.buf->width, e.buf->height,
-					   	e.buf->cursor_x, e.buf->cursor_y,
-						lua_getint(e.lua_state, "test")
-						);
-				plx_draw_text(TITLE_OFFSET, title_y, title, strlen(title), &font);
-			}
-			else {
-				plx_draw_text(TITLE_OFFSET, title_y, e.buf->cmd_input.data, e.buf->cmd_input.len, &font);
-			}
-		
-			// Text
-			// (TODO: dont use time to render stuff that is actually not visible at the moment.)
-			plx_color(255, 255, 255);
-			for(u32 i = 0; i < e.buf->last_line; i++) {
-				const struct string* str = &e.buf->data[i];
-				plx_draw_text(1, (i + TITLE_POS) * font_scr_height, str->data, MIN(e.buf->width, str->len), &font);
+			if(e.buf->flags & BUFFER_REDRAW_CURSOR) {
+				struct string* prevln = &e.buf->data[abs_prev_cur_y];
+
+				if(abs_prev_cur_x >= prevln->len) {
+					clear_space(abs_prev_cur_x, abs_prev_cur_y, 1);
+				}
+				else {
+					draw_char(prevln->data[abs_prev_cur_x], abs_prev_cur_x, abs_prev_cur_y, fg_color, bg_color);
+				}
+
+				char char_on_cursor = (e.buf->cursor.x >= currentln->len) ? '<' : currentln->data[e.buf->cursor.x];
+				draw_char(char_on_cursor, e.buf->cursor.x, e.buf->cursor.y, cursor_fg_color, cursor_bg_color);
 			}
 
-			// Frames
-			for(u32 i = 0; i < e.frame_count; i++) {
-				draw_frame(&e.frames[i], &font);
-			}
 
-			plx_swap_buffers();
+			abs_prev_cur_x = e.buf->cursor.x;
+			abs_prev_cur_y = e.buf->cursor.y;
+
 			if(e.buf->mode != COMMAND_INPUT) {
 				handle_input(&e);
 			}
 			else {
 				handle_command_input(&e);
 			}
-
 		}
 		else {
-			plx_color(25, 255, 255);
-			plx_draw_text(TITLE_OFFSET, title_y, "NULL", 4, &font);
-			
-			plx_swap_buffers();
 			handle_input(&e);
 		}
     }
-
-    plx_unload_font(&font);
-    plx_exit();
 }
 

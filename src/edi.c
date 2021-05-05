@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "edi.h"
 #include "util.h"
+#include "draw.h"
 
 
 void init_program(struct edi* e) {
@@ -44,8 +46,13 @@ void init_program(struct edi* e) {
 void exit_program(struct edi* e) {
 	int res = -1;
 
+	/* DELETE THIS */
+   	char* cmd = "ps -p $(pidof a.out) -o %cpu,%mem > log.txt";
+	system(cmd);
+
+
 	if(e != NULL) {
-		plx_exit();
+		free_drawing();
 		lua_close(e->lua_state);
 
 		for(u32 i = 0; i < e->buffer_count; i++) {
@@ -138,24 +145,6 @@ u8 add_frame(struct edi* e, char* text, u32 x, u32 y, u32 w, u32 h) {
 	}
 
 	return res;
-}
-
-void add_msg(struct edi* e, char* text, ...) {
-	if(e != NULL) {
-		char buf[MAX_MSG_LEN];
-		va_list ap;
-		va_start(ap, text);
-		vsnprintf(buf, MAX_MSG_LEN, text, ap);
-		va_end(ap);
-
-		const u32 msgh = e->font->header.height * e->font->scale;
-		const u32 msgy = e->height - msgh*2;
-		plx_color(120, 100, 120);
-		plx_draw_rect(0, msgy, e->width, msgh);
-		
-		plx_color(25, 25, 25);
-		plx_draw_text(5, msgy, buf, -1, e->font);
-	}
 }
 
 void remove_buffer(struct edi* e, u32 id) {

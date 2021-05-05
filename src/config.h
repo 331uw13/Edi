@@ -20,7 +20,6 @@
 #define FONT_FILE      "Tamsyn8x16b.psf.gz"    // NOTE: currently only supports psf2.  (TODO: add more support.)
 #define TAB_WIDTH      4     // Tab character width.
 #define FONT_SPACING   1     // Space between each character.
-#define FONT_SCALE     1
 
 #define KEY_SAVE_CURRENT   CTRL('w')
 #define KEY_QUIT_EDITOR    CTRL('q')

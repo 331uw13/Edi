@@ -19,11 +19,12 @@ u8 init_buffer(struct edit_buffer* buffer, u32 cols, u32 rows) {
 			buffer->last_line = rows-1;
 			buffer->width = cols;
 			buffer->height = rows;
-			buffer->cursor_x = 0;
-			buffer->cursor_y = 0;
-			buffer->cursor_p_ln_x = 0;
+			buffer->cursor.x = 0;
+			buffer->cursor.y = 0;
+			buffer->prev_cursor.x = 0;
+			buffer->prev_cursor.y = 0;
+			buffer->flags = BUFFER_REDRAW_TEXT;
 			init_string(&buffer->cmd_input, cols);
-
 			res = 1;
 		}
 	}
@@ -48,6 +49,7 @@ void free_buffer(struct edit_buffer* buffer) {
 		buffer->width = 0;
 		buffer->height = 0;
 		buffer->has_fd = 0;
+		buffer->flags = 0;
 	}
 	else {
 		printf("[CRITICAL WARNING]: possible memory leak!!! Buffer is NULL when trying to destroy it!\n");
@@ -66,20 +68,17 @@ u8 buffer_health_check(struct edit_buffer* buffer) {
 
 u8 buffer_addchr(struct edit_buffer* buffer, u32 x, u32 y, char c) {
 	u8 res = 0;
-	if(buffer_health_check(buffer)) {
+	if(buffer_health_check(buffer) && buffer->mode == MODE_INSERT || buffer->mode == MODE_REPLACE) {
 		struct string* str = &buffer->data[y];
 		if(str != NULL) {
 			x = MIN(x, str->len);
 			if(buffer->mode == MODE_INSERT) {
 				if(string_shift(str, x, 1)) {
-					str->data[x] = c;
 					res = 1;
 				}
 			}
-			else {
-				str->data[x] = c;
-				res = 1;
-			}
+			buffer->flags |= BUFFER_REDRAW_LINE;
+			str->data[x] = c;
 		}
 	}
 
@@ -88,7 +87,7 @@ u8 buffer_addchr(struct edit_buffer* buffer, u32 x, u32 y, char c) {
 
 u8 buffer_remchr(struct edit_buffer* buffer, u32 x, u32 y) {
 	u8 res = 0;
-	if(buffer_health_check(buffer)) {
+	if(buffer_health_check(buffer) && buffer->mode == MODE_INSERT) {
 		if(x > 0) {
 			y = MIN(y, buffer->last_line);
 			struct string* str = &buffer->data[y];
@@ -96,6 +95,7 @@ u8 buffer_remchr(struct edit_buffer* buffer, u32 x, u32 y) {
 				if(buffer->mode == MODE_INSERT) {
 					res = string_shift(str, x, -1);
 				}
+				buffer->flags |= BUFFER_REDRAW_LINE;
 			}
 		}
 	}
@@ -141,6 +141,7 @@ u8 buffer_move(struct edit_buffer* buffer, u32 dest_y, u32 src_y, u8 flag) {
 		else {
 			copy_string(dest, src);
 		}
+
 		if(flag == BUFFER_CLEAR_SRC) {
 			memset(src->data, 0x0, src->len);
 			src->len = 0;
@@ -157,7 +158,7 @@ u8 buffer_shift_lines(struct edit_buffer* buffer, u8 dir, u32 y) {
 		y = MIN(y, buffer->last_line);
 		if(dir == BUFFER_SHIFT_DOWN) {
 			for(u32 i = buffer->last_line; i > y; i--) {
-				res = buffer_move(buffer, i+1, i, BUFFER_CLEAR_SRC);
+				buffer_move(buffer, i+1, i, BUFFER_CLEAR_SRC);
 			}
 			res = 1;
 		}
@@ -167,9 +168,38 @@ u8 buffer_shift_lines(struct edit_buffer* buffer, u8 dir, u32 y) {
 			}
 			res = 1;
 		}
+		buffer->flags |= BUFFER_REDRAW_TEXT;
 	}
 
 	return res;
 }
 
+void buffer_move_cursor(struct edit_buffer* buffer, int xoff, int yoff) {
+	if(buffer != NULL) {
+		const u32 max_x = (buffer->mode == COMMAND_INPUT) ? 
+			buffer->cmd_input.len : buffer->data[buffer->cursor.y].len;
+
+		if(xoff < 0 && buffer->cursor.x > 0 || xoff > 0 && buffer->cursor.x + xoff <= max_x){
+			if(max_x > 0 && buffer->mode != COMMAND_INPUT) {
+				buffer->prev_cursor.x = buffer->cursor.x;
+			}
+			buffer->cursor.x += xoff;
+		}
+
+		if(buffer->mode != COMMAND_INPUT) {
+			if(yoff < 0 && buffer->cursor.y > 0 || yoff > 0 && buffer->cursor.y + yoff < buffer->last_line) {
+				buffer->prev_cursor.y = buffer->cursor.y;
+				buffer->cursor.y += yoff;
+				buffer->cursor.x = MIN(buffer->prev_cursor.x, buffer->data[buffer->cursor.y].len);
+			}
+		}
+		buffer->flags |= BUFFER_REDRAW_CURSOR;
+	}
+}
+
+void buffer_set_cursor(struct edit_buffer* buffer, u32 x, u32 y) {
+	if(buffer != NULL) {
+		buffer_move_cursor(buffer, x - buffer->cursor.x, y - buffer->cursor.y);
+	}
+}
 

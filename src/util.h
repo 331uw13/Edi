@@ -12,6 +12,7 @@
 
 #define MAX(a, b) ((a >= b) ? a : b)
 #define MIN(a, b) ((a <= b) ? a : b)
+#define RGB(r, g, b) ((r<<16) | (g<<8) | (b<<0))
 
 
 u8 allocate_memory(void** ptr, u64 mem_size);

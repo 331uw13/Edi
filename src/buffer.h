@@ -6,6 +6,7 @@
 
 #include "string.h"
 
+
 // Modes:
 #define MODE_INVALID   0
 #define MODE_INSERT    1
@@ -13,34 +14,34 @@
 #define MODE_SELECT    3
 #define COMMAND_INPUT  4
 
-#define BUFFER_SHIFT_DOWN 0
-#define BUFFER_SHIFT_UP   1
+#define BUFFER_SHIFT_DOWN  0
+#define BUFFER_SHIFT_UP    1
 #define BUFFER_CLEAR_SRC   0
 #define BUFFER_IGNORE_SRC  1
+
+#define BUFFER_REDRAW_CURSOR      (1<<0)
+#define BUFFER_REDRAW_LINE        (1<<1)
+#define BUFFER_REDRAW_TEXT        (1<<2)
 
 
 struct edit_buffer {
 	u32 mode;
+	u32 flags;
 	u32 width;
 	u32 height;
 	u32 last_line;
-	u8 has_fd;
-
-	u32 cursor_x;
-	u32 cursor_y;
-	u32 cursor_p_ln_x;      // Previous line X axis position.
-
-	/*
-		TODO:
+	struct v2 cursor;
+	struct v2 prev_cursor;  // Previous cursor position. X axis is updated if line len > 0.
+	/* TODO
 	u32 scroll_x;
 	u32 scroll_y;
 	u32 scroll_max_x;
 	u32 scroll_max_y;
 	*/
-
 	int fd;
+	u8 has_fd;
 	struct stat sb;
-	struct string* data;     // NOTE: rename to 'lines'
+	struct string* data;         // NOTE: rename to 'lines'
 	struct string cmd_input;
 };
 
@@ -55,5 +56,7 @@ u8 buffer_cut(struct edit_buffer* buffer, struct string* str, u32 start, u32 end
 u8 buffer_move(struct edit_buffer* buffer, u32 dest_y, u32 src_y, u8 flag);
 u8 buffer_shift_lines(struct edit_buffer* buffer, u8 dir, u32 y);
 
+void buffer_move_cursor(struct edit_buffer* buffer, int xoff, int yoff);
+void buffer_set_cursor(struct edit_buffer* buffer, u32 x, u32 y);
 
 #endif

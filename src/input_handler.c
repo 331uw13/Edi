@@ -22,42 +22,42 @@ void handle_input(struct edi* e) {
 			break;
 
 		case KEY_SWAP_LINE_UP:
-			if(e->buf->cursor_y > 0) {
-				swap_string(&e->buf->data[e->buf->cursor_y-1], &e->buf->data[e->buf->cursor_y]);
-				e->buf->cursor_y--;
+			if(e->buf->cursor.y > 0) {
+				swap_string(&e->buf->data[e->buf->cursor.y-1], &e->buf->data[e->buf->cursor.y]);
+				e->buf->cursor.y--;
 			}
 			break;
 		
 		case KEY_SWAP_LINE_DOWN:
-			if(e->buf->cursor_y < e->buf->last_line) {
-				swap_string(&e->buf->data[e->buf->cursor_y], &e->buf->data[e->buf->cursor_y+1]);
-				e->buf->cursor_y++;
+			if(e->buf->cursor.y < e->buf->last_line) {
+				swap_string(&e->buf->data[e->buf->cursor.y], &e->buf->data[e->buf->cursor.y+1]);
+				e->buf->cursor.y++;
 			}
 			break;
 
 		case KEY_GOTO_EOF:
-			e->buf->cursor_x = 0;
-			e->buf->cursor_y = e->buf->last_line-1;
+			e->buf->cursor.x = 0;
+			e->buf->cursor.y = e->buf->last_line-1;
 			break;
 
 		case KEY_GOTO_SOF:
-			e->buf->cursor_x = 0;
-			e->buf->cursor_y = 0;
+			e->buf->cursor.x = 0;
+			e->buf->cursor.y = 0;
 			break;
 		
 		case KEY_GOTO_EOL:
-			if(e->buf->cursor_y < e->buf->last_line) {
-				e->buf->cursor_x = e->buf->data[e->buf->cursor_y].len;
+			if(e->buf->cursor.y < e->buf->last_line) {
+				e->buf->cursor.x = e->buf->data[e->buf->cursor.y].len;
 			}
 			break;
 
 		case KEY_GOTO_SOL:
-			e->buf->cursor_x = 0;  // TODO: check for tabs ?
+			e->buf->cursor.x = 0;  // TODO: check for tabs ?
 			break;
 
 		case KEY_COMMAND_INPUT:
 			e->buf->mode = COMMAND_INPUT;
-			e->buf->cursor_x = 0;
+			e->buf->cursor.x = 0;
 			break;
 
 		case KEY_SWITCH_MODE:
@@ -93,9 +93,8 @@ void handle_input(struct edi* e) {
 
 		default:
 			if(input == TAB || input >= 0x20 && input < 0x7F) {
-				if(buffer_addchr(e->buf, e->buf->cursor_x, e->buf->cursor_y, input)) {
-					e->buf->cursor_x++;
-					e->buf->cursor_p_ln_x = e->buf->cursor_x;
+				if(buffer_addchr(e->buf, e->buf->cursor.x, e->buf->cursor.y, input)) {
+					buffer_move_cursor(e->buf, 1, 0);
 				}
 			}
 			break;
@@ -110,7 +109,7 @@ void handle_command_input(struct edi* e) {
 	
 		case ENTER:
 			e->buf->mode = MODE_INSERT;
-			e->buf->cursor_x = 0;
+			e->buf->cursor.x = 0;
 			handle_command_string(e, &e->buf->cmd_input);
 
 			memset(e->buf->cmd_input.data, 0x0, e->buf->cmd_input.len);
@@ -118,8 +117,8 @@ void handle_command_input(struct edi* e) {
 			break;
 
 		case BACKSPACE:
-			if(string_shift(&e->buf->cmd_input, e->buf->cursor_x, -1)) {
-				e->buf->cursor_x--;
+			if(string_shift(&e->buf->cmd_input, e->buf->cursor.x, -1)) {
+				e->buf->cursor.x--;
 			}
 			break;
 
@@ -129,54 +128,32 @@ void handle_command_input(struct edi* e) {
 	
 		default:
 			if(input >= 0x20 && input < 0x7F) {
-				if(string_shift(&e->buf->cmd_input, e->buf->cursor_x, 1)) {
-					e->buf->cmd_input.data[e->buf->cursor_x] = input;
-					e->buf->cursor_x++;
+				if(string_shift(&e->buf->cmd_input, e->buf->cursor.x, 1)) {
+					e->buf->cmd_input.data[e->buf->cursor.x] = input;
+					buffer_move_cursor(e->buf, 1, 0);
 				}
 			}
 			break;
 	}
 }
 
-
 void handle_cursor_movement(struct edit_buffer* buffer) {
 	plx_keyinput(); // Used to ignore '['.
 	switch(plx_keyinput()) {
-		case 'C':
-			if(buffer->mode == COMMAND_INPUT) {
-				if(buffer->cursor_x < buffer->cmd_input.len) {
-					buffer->cursor_x++;
-				}
-			}
-			else {
-				if(buffer->cursor_x < buffer->data[buffer->cursor_y].len) {
-					buffer->cursor_x++;
-					buffer->cursor_p_ln_x = buffer->cursor_x;
-				}
-			}
+		case 'C':  // LEFT
+			buffer_move_cursor(buffer, 1, 0);
 			break;
 
-		case 'D':
-			if(buffer->cursor_x > 0) {
-				buffer->cursor_x--;
-				if(buffer->mode != COMMAND_INPUT) {
-					buffer->cursor_p_ln_x = buffer->cursor_x;
-				}
-			}
+		case 'D':  // RIGHT
+			buffer_move_cursor(buffer, -1, 0);
 			break;
 
-		case 'A':
-			if(buffer->cursor_y > 0 && buffer->mode != COMMAND_INPUT) {
-				buffer->cursor_y--;
-				buffer->cursor_x = MIN(buffer->cursor_p_ln_x, buffer->data[buffer->cursor_y].len);
-			}
+		case 'A':  // UP
+			buffer_move_cursor(buffer, 0, -1);
 			break;
 	
-		case 'B':
-			if(buffer->cursor_y < buffer->last_line - 1 && buffer->mode != COMMAND_INPUT) {
-				buffer->cursor_y++;
-				buffer->cursor_x = MIN(buffer->cursor_p_ln_x, buffer->data[buffer->cursor_y].len);
-			}
+		case 'B':  // DOWN
+			buffer_move_cursor(buffer, 0, 1);
 			break;
 	
 		default: break;
@@ -184,29 +161,29 @@ void handle_cursor_movement(struct edit_buffer* buffer) {
 }
 
 static void handle_enter_key(struct edit_buffer* buffer) {
-	if(buffer_health_check(buffer) && buffer->cursor_y < buffer->last_line) {
-		struct string* str = &buffer->data[buffer->cursor_y];
-		const u32 x = MIN(buffer->cursor_x, str->len);
-		const u32 y = MIN(buffer->cursor_y, buffer->last_line);
+	if(buffer_health_check(buffer) && buffer->cursor.y < buffer->last_line) {
+		struct string* str = &buffer->data[buffer->cursor.y];
+		const u32 x = MIN(buffer->cursor.x, str->len);
+		const u32 y = MIN(buffer->cursor.y, buffer->last_line);
 
 		if(buffer_shift_lines(buffer, BUFFER_SHIFT_DOWN, y)) {
 			if(buffer_cut(buffer, str, x, str->len, 0, y+1)) {
-				buffer->cursor_x = 0;
-				buffer->cursor_y++;
+				buffer->cursor.x = 0;
+				buffer->cursor.y++;
 
-				if(str->data[0] == TAB) {
+				if(str->data[0] == '\t') {
 					u32 num_at_start = 1;
 					for(u32 i = 1; i < str->len; i++) {
-						if(str->data[i] == TAB) {
+						if(str->data[i] == '\t') {
 							num_at_start++;
 						}
 						else {
 							break;
 						}
 					}
-					str = &buffer->data[buffer->cursor_y];
-					string_add_char(str, 0, num_at_start, TAB);
-					buffer->cursor_x += num_at_start;
+					str = &buffer->data[buffer->cursor.y];
+					string_add_char(str, 0, num_at_start, '\t');
+					buffer->cursor.x += num_at_start;
 				}
 			}
 		}
@@ -214,20 +191,19 @@ static void handle_enter_key(struct edit_buffer* buffer) {
 }
 
 static void handle_backspace_key(struct edit_buffer* buffer) {
-	if(buffer_health_check(buffer) && buffer->cursor_y < buffer->last_line) {
-		struct string* str = &buffer->data[buffer->cursor_y];
+	if(buffer_health_check(buffer) && buffer->cursor.y < buffer->last_line) {
+		struct string* str = &buffer->data[buffer->cursor.y];
 		const u32 len = str->len;
 
-		if(buffer->cursor_x == 0 && buffer->cursor_y > 0) {
-			if(buffer_shift_lines(buffer, BUFFER_SHIFT_UP, buffer->cursor_y)) {
-				buffer->cursor_y--;
-				buffer->cursor_x = buffer->data[buffer->cursor_y].len - len;
+		if(buffer->cursor.x == 0 && buffer->cursor.y > 0) {
+			if(buffer_shift_lines(buffer, BUFFER_SHIFT_UP, buffer->cursor.y)) {
+				buffer_move_cursor(buffer, 0, -1);
+				buffer->cursor.x = buffer->data[buffer->cursor.y].len - len;
 			}
 		}
 		else {
-			if(buffer_remchr(buffer, buffer->cursor_x, buffer->cursor_y)) {
-				buffer->cursor_x--;
-				buffer->cursor_p_ln_x = buffer->cursor_x;
+			if(buffer_remchr(buffer, buffer->cursor.x, buffer->cursor.y)) {
+				buffer_move_cursor(buffer, -1, 0);
 			}
 		}
 	}

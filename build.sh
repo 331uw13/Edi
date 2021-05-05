@@ -7,7 +7,8 @@ if gcc\
    	 ./src/input_handler.c\
    	 ./src/command_handler.c\
    	 ./src/common.c\
-   	 ./src/util.c\
+   	 ./src/draw.c\
+	 ./src/util.c\
    	 ./src/main.c\
    	 ./src/edi.c\
    	 ./src/plx.c\

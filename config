@@ -1,0 +1,10 @@
+back_color  = 0x111155;
+text_color  = 0xFFFFFF;
+
+titlebar_back_color = 0x444444;
+titlebar_text_color = 0x11FFFF;
+
+cursor_back_color  = 0x118811;
+cursor_text_color  = text_color;
+
+

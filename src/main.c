@@ -70,34 +70,43 @@ int main(int argc, char** argv) {
 
 			sprintf(titlebar_text, "%s | %i,%i", modes_str[e.buf->mode], e.buf->cursor.x, e.buf->cursor.y);
 			draw_text_with_width_map(titlebar_text, strlen(titlebar_text), 1, titlebar_y,
-						titlebar_fg_color, titlebar_bg_color);
+						titlebar_fg_color, titlebar_bg_color, titlebar_bg_color);
 
 
 			if(e.buf->flags & BUFFER_REDRAW_TEXT) {
 				for(u32 i = 0; i < e.buf->height-1; i++) {
 					struct string* str = &e.buf->data[i];
-					draw_text_with_width_map(str->data, str->len, 0, i, fg_color, bg_color);
+					draw_text_with_width_map(str->data, str->len, 0, i, fg_color, bg_color, bg_color);
 				}
 				e.buf->flags &= ~BUFFER_REDRAW_TEXT;
 			}
 			else if(e.buf->flags & BUFFER_REDRAW_LINE) {
 				struct string* str = &e.buf->data[e.buf->cursor.y];
-				draw_text_with_width_map(str->data, str->len, 0, e.buf->cursor.y, fg_color, bg_color);
+				draw_text_with_width_map(str->data, str->len, 0, e.buf->cursor.y, fg_color, bg_color, bg_color);
 				e.buf->flags &= ~BUFFER_REDRAW_LINE;
 			}
 
 			if(e.buf->flags & BUFFER_REDRAW_CURSOR) {
 				struct string* prevln = &e.buf->data[abs_prev_cur_y];
-
+				const u32 tab_count = string_num_chars(currentln, 0, e.buf->cursor.x, '\t');
+				const u32 cur_off = (get_font()->tab_width * tab_count - tab_count);
+				/*
+				draw_rect(e.buf->cursor.x + get_font()->tab_width * cur_off - cur_off,
+					   		e.buf->cursor.y, 1, 1, cursor_bg_color);
+				*/
+				
+				
 				if(abs_prev_cur_x >= prevln->len) {
-					clear_space(abs_prev_cur_x, abs_prev_cur_y, 1);
+					draw_rect(abs_prev_cur_x + cur_off, abs_prev_cur_y, 1, 1, bg_color);
 				}
 				else {
-					draw_char(prevln->data[abs_prev_cur_x], abs_prev_cur_x, abs_prev_cur_y, fg_color, bg_color);
+					draw_char(prevln->data[abs_prev_cur_x], abs_prev_cur_x + cur_off, abs_prev_cur_y, fg_color, bg_color);
 				}
+				
 
 				char char_on_cursor = (e.buf->cursor.x >= currentln->len) ? '<' : currentln->data[e.buf->cursor.x];
-				draw_char(char_on_cursor, e.buf->cursor.x, e.buf->cursor.y, cursor_fg_color, cursor_bg_color);
+				draw_char(char_on_cursor, e.buf->cursor.x + cur_off, e.buf->cursor.y, cursor_fg_color, cursor_bg_color);
+				
 			}
 
 

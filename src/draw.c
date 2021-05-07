@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "draw.h"
-#include "plx.h"
 #include "config.h"
 
 
@@ -47,21 +46,20 @@ u32 get_font_height() {
 }
 
 u32 get_max_col() {
-	return fb.width / get_font_width();
+	return fb.width / (font.header.width + font.spacing);
 }
 
 u32 get_max_row() {
-	return fb.height / get_font_height();
+	return fb.height / font.header.height;
+}
+
+struct plx_font* get_font() {
+	return &font;
 }
 
 void clear_screen(u32 bg_color) {
 	fb.clear_color = bg_color;
 	plx_clear(&fb);
-}
-
-void clear_space(u16 col, u16 row, u16 width) {
-	const u32 w = font.header.width + font.spacing;
-	plx_clear_region(&fb, col * w, row * font.header.height, width * w, font.header.height);
 }
 
 void draw_char(char c, u16 col, u16 row, u32 fg_color, u32 bg_color) {
@@ -92,21 +90,20 @@ void draw_text(char* text, u32 len, u16 col, u16 row, u32 fg_color, u32 bg_color
 			col++;
 		}
 		else {
+			draw_rect(col, row, font.tab_width, 1, bg_color);
 			col += font.tab_width;
 		}
 	}
 }
 
-void draw_text_with_width_map(char* text, u32 len, u16 col, u16 row, u32 fg_color, u32 bg_color) {
+void draw_text_with_width_map(char* text, u32 len, u16 col, u16 row, 
+			u32 fg_color, u32 bg_color, u32 clear_color) {
 	const u32 total = col + len;
-
 	if(total < width_map[row]) {
-		draw_rect(total, row, width_map[row] - total, 1, bg_color);
-		width_map[row] = total;
-	} else {
-		width_map[row] = total;
+		draw_rect(total, row, width_map[row] - total, 1, clear_color);
 	}
-	
+
+	width_map[row] = total;
 	draw_text(text, len, col, row, fg_color, bg_color);
 }
 

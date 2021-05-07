@@ -57,6 +57,10 @@ struct plx_font* get_font() {
 	return &font;
 }
 
+struct plx_fb* get_fb() {
+	return &fb;
+}
+
 void clear_screen(u32 bg_color) {
 	fb.clear_color = bg_color;
 	plx_clear(&fb);
@@ -82,7 +86,8 @@ void draw_char(char c, u16 col, u16 row, u32 fg_color, u32 bg_color) {
 	}
 }
 
-void draw_text(char* text, u32 len, u16 col, u16 row, u32 fg_color, u32 bg_color) {
+u16 draw_text(char* text, u32 len, u16 col, u16 row, u32 fg_color, u32 bg_color) {
+	u16 origin = col;
 	for(u32 i = 0; i < len; i++) {
 		char c = text[i];
 		if(c != '\t') {
@@ -94,17 +99,18 @@ void draw_text(char* text, u32 len, u16 col, u16 row, u32 fg_color, u32 bg_color
 			col += font.tab_width;
 		}
 	}
+	return col - origin;
 }
 
 void draw_text_with_width_map(char* text, u32 len, u16 col, u16 row, 
 			u32 fg_color, u32 bg_color, u32 clear_color) {
-	const u32 total = col + len;
+	
+	u32 total = col + len;
 	if(total < width_map[row]) {
 		draw_rect(total, row, width_map[row] - total, 1, clear_color);
 	}
 
-	width_map[row] = total;
-	draw_text(text, len, col, row, fg_color, bg_color);
+	width_map[row] = draw_text(text, len, col, row, fg_color, bg_color);
 }
 
 void draw_rect(u16 col, u16 row, u16 w, u16 h, u32 color) {

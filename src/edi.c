@@ -47,7 +47,7 @@ void exit_program(struct edi* e) {
 	int res = -1;
 
 	/* DELETE THIS */
-   	char* cmd = "ps -p $(pidof a.out) -o %cpu,%mem > log.txt";
+   	char* cmd = "ps -p $(pidof edi) -o %cpu,%mem > log.txt";
 	system(cmd);
 
 

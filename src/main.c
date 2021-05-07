@@ -43,8 +43,8 @@ int main(int argc, char** argv) {
 		open_file(argv[1], e.buf);
 	}
 
-	u32 abs_prev_cur_x = 0;
-	u32 abs_prev_cur_y = 0;
+	u32 cursor_prev_scr_x = 0;
+	u32 cursor_prev_scr_y = 0;
 	
 	clear_screen(bg_color);
 	
@@ -65,7 +65,8 @@ int main(int argc, char** argv) {
     while(1) {
 		plx_delay(10);
 		if(e.buf != NULL) {
-			struct string* currentln = &e.buf->data[e.buf->cursor.y];
+			struct string* currentln = &e.buf->data[e.buf->cursor.y];  // Current line.
+			//struct string* prevln    = &e.buf->data[abs_prev_cur_y];   // Previous line.
 
 
 			sprintf(titlebar_text, "%s | %i,%i", modes_str[e.buf->mode], e.buf->cursor.x, e.buf->cursor.y);
@@ -81,37 +82,49 @@ int main(int argc, char** argv) {
 				e.buf->flags &= ~BUFFER_REDRAW_TEXT;
 			}
 			else if(e.buf->flags & BUFFER_REDRAW_LINE) {
-				struct string* str = &e.buf->data[e.buf->cursor.y];
-				draw_text_with_width_map(str->data, str->len, 0, e.buf->cursor.y, fg_color, bg_color, bg_color);
+				draw_text_with_width_map(currentln->data, currentln->len, 0, e.buf->cursor.y, fg_color, bg_color, bg_color);
 				e.buf->flags &= ~BUFFER_REDRAW_LINE;
 			}
 
 			if(e.buf->flags & BUFFER_REDRAW_CURSOR) {
-				struct string* prevln = &e.buf->data[abs_prev_cur_y];
-				const u32 tab_count = string_num_chars(currentln, 0, e.buf->cursor.x, '\t');
-				const u32 cur_off = (get_font()->tab_width * tab_count - tab_count);
+
+				struct plx_fb* fb = get_fb();
+				const u32 fw = get_font_width();
+				const u32 fh = get_font_height();
+				const u32 tab_count = string_num_chars(currentln, 0, e.buf->cursor.x+1, '\t');
+				const u32 cur_off = fw*(get_font()->tab_width * tab_count - tab_count);
+
+				u32 x = e.buf->cursor.x * fw + cur_off;
+				u32 y = e.buf->cursor.y * fh;
+
+				plx_clear_region(fb, cursor_prev_scr_x, cursor_prev_scr_y + fh - 2, fw, 3);
+
+				fb->draw_color = cursor_bg_color;
+				plx_draw_region(fb, x, y + fh - 2, fw, 3);
+
+				cursor_prev_scr_x = x;
+				cursor_prev_scr_y = y;
+
 				/*
-				draw_rect(e.buf->cursor.x + get_font()->tab_width * cur_off - cur_off,
-					   		e.buf->cursor.y, 1, 1, cursor_bg_color);
-				*/
-				
-				
+				const u32 tab_count = string_num_chars(currentln, 0, e.buf->cursor.x, '\t');
+				const u32 prev_tab_count = string_num_chars(prevln, 0, abs_prev_cur_x, '\t');
+				const u32 cur_off = get_font()->tab_width * tab_count - tab_count;
+				const u32 prev_cur_off = get_font()->tab_width * prev_tab_count - prev_tab_count;
+
+				char current_char = (e.buf->cursor.x >= currentln->len) ? '<' : currentln->data[e.buf->cursor.x];
+				char previous_char = prevln->data[abs_prev_cur_x];
+			
+				// Clear previous position
 				if(abs_prev_cur_x >= prevln->len) {
-					draw_rect(abs_prev_cur_x + cur_off, abs_prev_cur_y, 1, 1, bg_color);
+					draw_rect(abs_prev_cur_x + prev_cur_off, abs_prev_cur_y, 1, 1, bg_color);
 				}
 				else {
-					draw_char(prevln->data[abs_prev_cur_x], abs_prev_cur_x + cur_off, abs_prev_cur_y, fg_color, bg_color);
+					draw_char(previous_char, abs_prev_cur_x + prev_cur_off, abs_prev_cur_y, fg_color, bg_color);
 				}
 				
-
-				char char_on_cursor = (e.buf->cursor.x >= currentln->len) ? '<' : currentln->data[e.buf->cursor.x];
-				draw_char(char_on_cursor, e.buf->cursor.x + cur_off, e.buf->cursor.y, cursor_fg_color, cursor_bg_color);
-				
+				draw_char(current_char, e.buf->cursor.x + cur_off, e.buf->cursor.y, cursor_fg_color, cursor_bg_color);
+				*/
 			}
-
-
-			abs_prev_cur_x = e.buf->cursor.x;
-			abs_prev_cur_y = e.buf->cursor.y;
 
 			if(e.buf->mode != COMMAND_INPUT) {
 				handle_input(&e);

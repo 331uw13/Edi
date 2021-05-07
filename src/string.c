@@ -72,7 +72,7 @@ u8 string_memcheck(struct string* str, int inc) {
 
 u32 string_num_chars(struct string* str, u32 start, u32 end, char c) {
 	u32 count = 0;
-	if(str != NULL && str->data != NULL) {
+	if(end > start && str != NULL && str->data != NULL) {
 		char* i = &str->data[start];
 		u32 p = 0;
 		while(p < end - start) {
@@ -81,8 +81,7 @@ u32 string_num_chars(struct string* str, u32 start, u32 end, char c) {
 			count++;
 		}
 	}
-
-	return count - 1;
+	return (count > 0) ? count - 1 : 0;
 }
 
 u8 string_shift(struct string* str, int start, int amount) {

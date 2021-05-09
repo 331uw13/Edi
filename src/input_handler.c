@@ -11,6 +11,10 @@
 #define TAB        0x9
 #define ESC        0x1B
 
+static void handle_cursor_movement(struct edit_buffer* buffer);
+static void handle_enter_key(struct edit_buffer* buffer);
+static void handle_backspace_key(struct edit_buffer* buffer);
+
 
 void handle_input(struct edi* e) {
 	u8 input = plx_keyinput();
@@ -92,7 +96,7 @@ void handle_input(struct edi* e) {
 			break;
 
 		default:
-			if(input == TAB || input >= 0x20 && input < 0x7F) {
+			if(input == TAB || (input > 0x1F && input < 0x7F)) {
 				if(buffer_addchr(e->buf, e->buf->cursor.x, e->buf->cursor.y, input)) {
 					buffer_move_cursor(e->buf, 1, 0);
 				}
@@ -127,7 +131,7 @@ void handle_command_input(struct edi* e) {
 			break;
 	
 		default:
-			if(input >= 0x20 && input < 0x7F) {
+			if(input > 0x1F && input < 0x7F) {
 				if(string_shift(&e->buf->cmd_input, e->buf->cursor.x, 1)) {
 					e->buf->cmd_input.data[e->buf->cursor.x] = input;
 					buffer_move_cursor(e->buf, 1, 0);

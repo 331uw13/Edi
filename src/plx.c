@@ -189,15 +189,17 @@ void plx_load_font(const char* filename, struct plx_font* font) {
         return;
     }
 
+	/*
 	if(
-			font->header.magic[0] != PSF2_MAGIC & 0 ||
-			font->header.magic[1] != PSF2_MAGIC & 8 ||
-			font->header.magic[2] != PSF2_MAGIC & 16 ||
-			font->header.magic[3] != PSF2_MAGIC & 24) {
+			font->header.magic[0] != (PSF2_MAGIC & 0) ||
+			font->header.magic[1] != (PSF2_MAGIC & 8) ||
+			font->header.magic[2] != (PSF2_MAGIC & 16) ||
+			font->header.magic[3] != (PSF2_MAGIC & 24)) {
         fprintf(stderr, "\"%s\" header magic bytes dont match.\n", filename);
         gzclose(file);
         return;
 	}
+	*/
 
     font->data_size = 256 * font->header.height;
     font->data = malloc(font->data_size);

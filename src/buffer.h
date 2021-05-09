@@ -32,6 +32,8 @@ struct edit_buffer {
 	u32 last_line;
 	struct v2 cursor;
 	struct v2 prev_cursor;  // Previous cursor position. X axis is updated if line len > 0.
+	struct v2 scroll;
+
 	/* TODO
 	u32 scroll_x;
 	u32 scroll_y;

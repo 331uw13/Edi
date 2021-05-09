@@ -12,7 +12,7 @@ u8 allocate_memory(void** ptr, u64 mem_size) {
 		res = 1;
 	}
 	else {
-		fprintf(stderr, "Failed to allocate %i bytes of memory!\n", mem_size);
+		fprintf(stderr, "Failed to allocate %li bytes of memory!\n", mem_size);
 		if(errno == ENOMEM) {
 			fprintf(stderr, "out of memory!\n");
 		}
@@ -30,7 +30,7 @@ u8 resize_memory(void** ptr, u64 mem_size, u64 new_mem_size) {
 			res = 1;
 		}
 		else {
-			fprintf(stderr, "Failed to allocate %i bytes of memory!\n", (new_mem_size - mem_size));
+			fprintf(stderr, "Failed to allocate %li bytes of memory!\n", (new_mem_size - mem_size));
 			if(errno == ENOMEM) {
 				fprintf(stderr, "out of memory!\n");
 			}

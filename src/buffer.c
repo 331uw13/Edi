@@ -23,6 +23,8 @@ u8 init_buffer(struct edit_buffer* buffer, u32 cols, u32 rows) {
 			buffer->cursor.y = 0;
 			buffer->prev_cursor.x = 0;
 			buffer->prev_cursor.y = 0;
+			buffer->scroll.x = 0;
+			buffer->scroll.y = 0;
 			buffer->flags = BUFFER_REDRAW_TEXT;
 			init_string(&buffer->cmd_input, cols);
 			res = 1;
@@ -50,6 +52,8 @@ void free_buffer(struct edit_buffer* buffer) {
 		buffer->height = 0;
 		buffer->has_fd = 0;
 		buffer->flags = 0;
+		buffer->scroll.x = 0;
+		buffer->scroll.y = 0;
 	}
 	else {
 		printf("[CRITICAL WARNING]: possible memory leak!!! Buffer is NULL when trying to destroy it!\n");
@@ -68,7 +72,7 @@ u8 buffer_health_check(struct edit_buffer* buffer) {
 
 u8 buffer_addchr(struct edit_buffer* buffer, u32 x, u32 y, char c) {
 	u8 res = 0;
-	if(buffer_health_check(buffer) && buffer->mode == MODE_INSERT || buffer->mode == MODE_REPLACE) {
+	if(buffer_health_check(buffer) && (buffer->mode == MODE_INSERT || buffer->mode == MODE_REPLACE)) {
 		struct string* str = &buffer->data[y];
 		if(str != NULL) {
 			x = MIN(x, str->len);
@@ -179,7 +183,7 @@ void buffer_move_cursor(struct edit_buffer* buffer, int xoff, int yoff) {
 		const u32 max_x = (buffer->mode == COMMAND_INPUT) ? 
 			buffer->cmd_input.len : buffer->data[buffer->cursor.y].len;
 
-		if(xoff < 0 && buffer->cursor.x > 0 || xoff > 0 && buffer->cursor.x + xoff <= max_x){
+		if((xoff < 0 && buffer->cursor.x > 0) || (xoff > 0 && buffer->cursor.x + xoff <= max_x)) {
 			if(max_x > 0 && buffer->mode != COMMAND_INPUT) {
 				buffer->prev_cursor.x = buffer->cursor.x;
 			}
@@ -187,7 +191,7 @@ void buffer_move_cursor(struct edit_buffer* buffer, int xoff, int yoff) {
 		}
 
 		if(buffer->mode != COMMAND_INPUT) {
-			if(yoff < 0 && buffer->cursor.y > 0 || yoff > 0 && buffer->cursor.y + yoff < buffer->last_line) {
+			if((yoff < 0 && buffer->cursor.y > 0) || (yoff > 0 && buffer->cursor.y + yoff < buffer->last_line)) {
 				buffer->prev_cursor.y = buffer->cursor.y;
 				buffer->cursor.y += yoff;
 				buffer->cursor.x = MIN(buffer->prev_cursor.x, buffer->data[buffer->cursor.y].len);

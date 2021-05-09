@@ -103,14 +103,14 @@ u16 draw_text(char* text, u32 len, u16 col, u16 row, u32 fg_color, u32 bg_color)
 }
 
 void draw_text_with_width_map(char* text, u32 len, u16 col, u16 row, 
-			u32 fg_color, u32 bg_color, u32 clear_color) {
+		u32 fg_color, u32 bg_color, u32 clear_color) {
 	
-	u32 total = col + len;
+	const u32 total = col + len;
 	if(total < width_map[row]) {
 		draw_rect(total, row, width_map[row] - total, 1, clear_color);
 	}
 
-	width_map[row] = draw_text(text, len, col, row, fg_color, bg_color);
+	width_map[row] = col + draw_text(text, len, col, row, fg_color, bg_color);
 }
 
 void draw_rect(u16 col, u16 row, u16 w, u16 h, u32 color) {

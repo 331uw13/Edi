@@ -1,6 +1,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <lua5.2/lua.h>
+#include <lua5.2/lualib.h>
+#include <lua5.2/lauxlib.h>
+
 #define CTRL(a) a & 0x1F
 #define TITLE_BOTTOM 0
 
@@ -14,8 +18,7 @@
 #define MAX_BUFFERS          16
 #define MAX_MSG_LEN          512
 
-#define TITLE_OFFSET   3
-#define TITLE_POS      0     // 1 for top and 0 for bottom.
+#define TITLE_OFFSET   2
 
 #define FONT_FILE      "Tamsyn8x16b.psf.gz"    // NOTE: currently only supports psf2.  (TODO: add more support.)
 #define TAB_WIDTH      4     // Tab character width.
